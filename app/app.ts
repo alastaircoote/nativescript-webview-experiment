@@ -1,7 +1,7 @@
 import {DetectorController} from './controllers/detector-controller';
 
 const App = NSObject.extend({
-    applicationDidFinishLaunchingWithOptions: function (application, launchOptions) {
+    applicationDidFinishLaunchingWithOptions: function (application: UIApplication, launchOptions) {
         
         this.setBrowserUserAgent();
        
