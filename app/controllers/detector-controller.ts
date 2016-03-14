@@ -19,26 +19,45 @@ export const DetectorController = UIViewController.extend({
         // set it to null once it actually fires.
         
         if (!this.changePageTimeout) {
-            this.changePageTimeout = setTimeout(this.moveToRandomArticleLink.bind(this), 30000);
+            console.log('setting timer...')
+            this.changePageTimeout = setTimeout(this.moveToRandomArticleLink.bind(this), 20000);
         }
     },
     moveToRandomArticleLink: function() {
         // Reset our timeout so it'll run again on next load
         clearTimeout(this.changePageTimeout);
         this.changePageTimeout = null;
-        
-        this.webview.stringByEvaluatingJavaScriptFromString(`
+        var allLinksResponse = this.webview.stringByEvaluatingJavaScriptFromString(`
+            window.onerror = function(err) {alert(err)};
             (function() {
                 var allArticleLinks = document.querySelectorAll('a[href^="/2016"]');
-                var selectedLink = allArticleLinks[Math.floor(Math.random() * allArticleLinks.length)];
-                window.location = selectedLink.href;
+                
+                return JSON.stringify(Array.prototype.slice.call(allArticleLinks).map(function(a) {
+                    return a.href;
+                }));
+                
             })();
-        `)
+        `);
+        var parsedAllLinks = JSON.parse(allLinksResponse);
+        
+        // Some pages don't have any links on them, so we actually cache the links used on the last
+        // page. If there are no new links, we return to the previous list and select a different link.
+        
+        if (parsedAllLinks.length > 0) {
+            this.possibleLinks = parsedAllLinks;
+        }
+        var selectedLink = this.possibleLinks[Math.floor(Math.random() * this.possibleLinks.length)];
+        
+        console.log("Sending to", selectedLink);
+        this.webview.stringByEvaluatingJavaScriptFromString(`window.location = '${selectedLink}'`);
     },
     webViewShouldStartLoadWithRequestNavigationType: function(webView: UIWebView, request: NSURLRequest, navigationType: number) {
         if (request.URL.host === 'itunes.apple.com') {
             // This was an attempt to redirect the user to the App Store.
             // Do something here.
+            clearTimeout(this.changePageTimeout);
+            console.log('app link?', request.URL.absoluteString);
+            this.webview.stringByEvaluatingJavaScriptFromString("alert('App ad?')");
             return false;
         }
         return true;
