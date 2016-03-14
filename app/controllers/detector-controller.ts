@@ -5,6 +5,7 @@ export const DetectorController = UIViewController.extend({
         this.webview = UIWebView.new().initWithFrame(UIScreen.mainScreen().bounds);
         this.webview.delegate = this;
         this.view = this.webview;
+        this.availableLinks = [];
         return this.super.init();
     },
     viewDidAppear: function() {
@@ -27,7 +28,7 @@ export const DetectorController = UIViewController.extend({
         // Reset our timeout so it'll run again on next load
         clearTimeout(this.changePageTimeout);
         this.changePageTimeout = null;
-        var allLinksResponse = this.webview.stringByEvaluatingJavaScriptFromString(`
+        let allLinksResponse = this.webview.stringByEvaluatingJavaScriptFromString(`
             window.onerror = function(err) {alert(err)};
             (function() {
                 var allArticleLinks = document.querySelectorAll('a[href^="/2016"]');
@@ -38,18 +39,23 @@ export const DetectorController = UIViewController.extend({
                 
             })();
         `);
-        var parsedAllLinks = JSON.parse(allLinksResponse);
+        let parsedAllLinks = JSON.parse(allLinksResponse);
         
-        // Some pages don't have any links on them, so we actually cache the links used on the last
-        // page. If there are no new links, we return to the previous list and select a different link.
+        // Some pages don't have any links on them, so we keep a cache of all the article links
+        // we find, then select from them.
         
-        if (parsedAllLinks.length > 0) {
-            this.possibleLinks = parsedAllLinks;
+        for (let link of parsedAllLinks) {
+            if (this.availableLinks.indexOf(link) === -1) {
+                this.availableLinks.push(link);
+            }
         }
-        var selectedLink = this.possibleLinks[Math.floor(Math.random() * this.possibleLinks.length)];
         
-        console.log("Sending to", selectedLink);
-        this.webview.stringByEvaluatingJavaScriptFromString(`window.location = '${selectedLink}'`);
+        let indexToSelect = Math.floor(Math.random() * this.availableLinks.length);
+        
+        let [removedLink] = this.availableLinks.splice(indexToSelect, 1);
+        
+        console.log("Sending to", removedLink);
+        this.webview.stringByEvaluatingJavaScriptFromString(`window.location = '${removedLink}'`);
     },
     webViewShouldStartLoadWithRequestNavigationType: function(webView: UIWebView, request: NSURLRequest, navigationType: number) {
         if (request.URL.host === 'itunes.apple.com') {
